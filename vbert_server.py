@@ -14,7 +14,7 @@ from transformers import AutoTokenizer, AutoConfig
 from modeling_async_new import vBertModel
 
 
-file_s = open("../data/sentence/chemprot.txt")
+file_s = open(PATH_TO_CORPUS_FILE)
 lines = file_s.readlines()
 device = torch.device('cuda:0')
 
@@ -60,8 +60,8 @@ class Manager:
 
 
 def vbert_server(input_queue):
-    tokenizer = AutoTokenizer.from_pretrained('../model/bert-base-uncased')
-    config = AutoConfig.from_pretrained('../model/bert-base-uncased')
+    tokenizer = AutoTokenizer.from_pretrained(PATH_TO_TOKENIZER)
+    config = AutoConfig.from_pretrained(PATH_TO_CONFIG)
     config.batch_size = 1700
     config.bottleneck_size = 64
     config.num_full_hidden_layers = 6
@@ -78,7 +78,7 @@ def vbert_server(input_queue):
     ]
 
     config.plot_mode = 'update_all'
-    vbert = vBertModel.from_pretrained('../model/skip-mlm-new/', config=config).eval().to(device)
+    vbert = vBertModel.from_pretrained(PATH_TO_MODEL, config=config).eval().to(device)
     x = tokenizer(lines[batch_size], padding='max_length', max_length=128, return_tensors='pt', truncation=True).input_ids.to(device)
 
     with torch.no_grad():
@@ -104,9 +104,6 @@ def vbert_server(input_queue):
         output = vbert(x_cpu, adapter_param=adapter_param)
 
 
-# TODO:
-#   1 batch requests from same user
-#   2 return results to user
 def Dispatcher(input_queue):
     # handle requests from clients
     ip_port = ('127.0.0.1', 9999)
@@ -118,7 +115,6 @@ def Dispatcher(input_queue):
     while True:
         client_data = conn.recv(1024).decode('utf-8')
         item = json.loads(client_data)
-        conn.sendall('got result from server'.encode())
         input_queue.put(item)
     conn.close()
 
