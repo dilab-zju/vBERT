@@ -19,4 +19,4 @@ if __name__ == '__main__':
         print(server_reply)
         time.sleep(3)
 
-    s.close()       # 关闭连接
+    s.close()       
