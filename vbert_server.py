@@ -1,23 +1,40 @@
 import json
+import multiprocessing
+from multiprocessing import Process, Queue
 import os
 import threading
 import time
-import queue
+import requests
 import torch
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
 import logging
-import socket
 import numpy as np
 from transformers import AutoTokenizer, AutoConfig
-from modeling_async_new import vBertModel
+from modeling_async import vBertModel
+import warnings
+warnings.filterwarnings('ignore')
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+# print log ob screen
+ch = logging.StreamHandler()
+# output put log to disk file
+fh = logging.FileHandler(filename='./server.log')
+formatter = logging.Formatter(
+    "%(asctime)s - %(module)s - %(funcName)s - line:%(lineno)d - %(levelname)s - %(message)s"
+)
+
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 
 file_s = open(PATH_TO_CORPUS_FILE)
 lines = file_s.readlines()
 device = torch.device('cuda:0')
-
+input_queue = Queue(1000000)
+init_signal_queue = Queue(10)
 
 class Manager:
     def __init__(self, bottleneck_size, hidden_size, num_tenants, num_full_hidden_layers):
@@ -49,7 +66,7 @@ class Manager:
 
             self.all_adapters.append(domain_adapers)
 
-        print("load all adapters over")
+        logger.info("load all adapters over")
 
         return self.all_adapters
 
@@ -59,7 +76,7 @@ class Manager:
         return self.all_adapters[domain_index][id]
 
 
-def vbert_server(input_queue):
+def vbert_server(input_queue, signal_queue):
     tokenizer = AutoTokenizer.from_pretrained(PATH_TO_TOKENIZER)
     config = AutoConfig.from_pretrained(PATH_TO_CONFIG)
     config.batch_size = 1700
@@ -89,11 +106,12 @@ def vbert_server(input_queue):
     adapter_manager = Manager(config.bottleneck_size, config.hidden_size, num_tenants, config.num_full_hidden_layers)
     adapter_manager.load_all_adapters()
 
+    signal_queue.put(1)
     # handling inference requests
     config.plot_mode = 'plot_only'
     while True:
         item = input_queue.get()
-        print("got inference request from user")
+        logger.info("vbert got inference request from dispatcher")
         id = item['id']
         seq = item['seq']
         domain_name = item['domain_name']
@@ -104,19 +122,43 @@ def vbert_server(input_queue):
         output = vbert(x_cpu, adapter_param=adapter_param)
 
 
-def Dispatcher(input_queue):
-    # handle requests from clients
-    ip_port = ('127.0.0.1', 9999)
+# next for fastAPI
+class Request(BaseModel):
+    id: int
+    domain_name: str
+    seq: str
 
-    sk = socket.socket()
-    sk.bind(ip_port)
-    sk.listen(5)
-    conn, address = sk.accept()
+
+app = FastAPI()
+
+
+@app.get("/init_process")
+def init():
+    # start vbert server
+    Process(target=vbert_server, args=(input_queue, init_signal_queue, )).start()
     while True:
-        client_data = conn.recv(1024).decode('utf-8')
-        item = json.loads(client_data)
-        input_queue.put(item)
-    conn.close()
+        if init_signal_queue.qsize() != 0:
+            break
+    return "init vbert server done"
+
+
+def init_model():
+    time.sleep(5)
+    url = "http://0.0.0.0:9989/init_process"
+    res = requests.get(url)
+    logger.info(res.text)
+
+
+
+@app.post("/inference")
+def Dispatcher(request : Request):
+    dic = request.dict()
+    user_id = dic['id']
+    domain_name = dic['domain_name']
+    seq = dic['seq']
+    input_queue.put(dic)
+    return "ok"
+
 
 
 if __name__ == '__main__':
@@ -124,14 +166,7 @@ if __name__ == '__main__':
     #     torch.multiprocessing.set_start_method(method='spawn', force=True)
     # except RuntimeError:
     #     pass
+    #
 
-    input_queue = torch.multiprocessing.Queue(1000000)
-
-    dispatcher = torch.multiprocessing.Process(target=Dispatcher, args=(input_queue, ))
-    dispatcher.start()
-
-    server = torch.multiprocessing.Process(target=vbert_server, args=(input_queue, ))
-    server.start()
-
-
-
+    Process(target=init_model).start()
+    uvicorn.run(app="vBert_test_for_github:app", host="0.0.0.0", port=9989, reload=True, workers=4)
