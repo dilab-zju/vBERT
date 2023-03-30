@@ -1,5 +1,7 @@
 # Managing Flock of BERTs in the Cloud for Cost-Effective Inference
 
+Welcome to vBERT project! This is a work in progress, and is not yet fully functional or stable. Please keep this in mind as you explore the project.
+
 # About the project
 
 > This project aims to tackle the challenge of efficiently serving massive numbers of customized pre-trained language models (PLM) in a single commodity cloud server while maintaining high throughput and cost-effectiveness. To accomplish this, we propose to combine two techniques: lower layer skipping and parameter-efficient fine-tuning. Additionally, we introduce virtualized model processors to serve large numbers of tenants, resulting in cost-effective PLM serving without sacrificing inference speed or accuracy.
