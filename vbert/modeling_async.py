@@ -141,24 +141,6 @@ class ShallowSkipping(nn.Module):
             
         self.plot = plot.Plot(self.config.max_num_entries, self.config.hidden_size)
         
-#         self.input_q = mp.Queue()
-#         self.output_q = mp.Queue()
-#         # self.input_ids_buffer = torch.randn(1)
-        
-#         def search_process(max_num_entries, hidden_size, input_q, output_q):
-#             _plot = plot.Plot(self.config.max_num_entries, self.config.hidden_size)
-#             while True:
-#                 input_ids = input_q.get()
-#                 hidden_states = _plot.retrieve_data(input_ids)
-#                 # hidden_states.share_memory_()
-#                 output_q.put(1)
-        
-#         self.p = mp.Process(target=search_process, args=(
-#             self.config.max_num_entries, self.config.hidden_size, 
-#             self.input_q, self.output_q,
-#         ))
-#         self.p.start()
-        
         
     def _build_tri_gram_ids(self, input_ids:torch.Tensor) -> torch.Tensor:
         return torch.from_numpy(
