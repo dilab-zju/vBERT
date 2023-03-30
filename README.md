@@ -22,7 +22,16 @@ Please refer to `./training` folder.
 
 ## Serving
 
-TODO
+### Pipelined Inference
+
+Pipeline optimization is a technique to make the deep learning model's inference faster. It involves overlapping the time overhead of different parts of the model to reduce idle time of hardware like GPUs. 
+
+In this project, we apply this on two places: 
+(1) Retrieving ngram representations and transformer computation; 
+(2) Loading adapter parameters while processing the main network. 
+These techniques can speed up the inference by up to 25%.
+
+We use CUDA stream to implement the above optimization. Please refer to `vbert/modeling_async.py` for details.
 
 ## Sending Requests
 
