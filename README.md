@@ -37,7 +37,11 @@ We use CUDA stream to implement the above optimization. Please refer to `vbert/m
 
 ## Sending Requests
 
-TODO
+Please refer to client.py to send an inference request. 
+
+## vbert server handling requests
+
+In vebert_server.py, the `Dispatcher` recieves requests from users and put it in a `input_queue`. Vbert server starts searching for adapers and PLOT according to user's ID and domain name.
 
 
 If you find this code useful in your research, please consider citing:
